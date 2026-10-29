@@ -1,6 +1,8 @@
 (() => {
   const params = new URLSearchParams(window.location.search);
   const projectKey = params.get('project_key') || '';
+  const appointmentToken = params.get('appointment_token') || '';
+  const appointmentAction = params.get('appointment_action') || '';
   const apiBase = (params.get('api') || 'https://preview.zisto.app').replace(/\/$/, '');
   const endpoint = apiBase + '/api/track';
   const liveUrl =
@@ -14,6 +16,9 @@
     staff: null,
     date: null,
     time: null,
+    manage: null,
+    manageDate: null,
+    manageTime: null,
   };
 
   const backdrop = document.getElementById('booking-backdrop');
@@ -32,6 +37,593 @@
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && !backdrop.hidden) closeBooking();
   });
+
+  if (
+    appointmentToken &&
+    (appointmentAction === 'reschedule' ||
+      appointmentAction === 'cancel')
+  ) {
+    void openAppointmentManagement();
+  }
+
+  async function openAppointmentManagement() {
+    backdrop.hidden = false;
+    document.body.style.overflow = 'hidden';
+    setProgress(0);
+    content.innerHTML = '<div class="booking-loading"><div class="spinner"></div><p>Loading appointment…</p></div>';
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          action: 'appointment_manage',
+          appointment_token: appointmentToken,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+          'Could not load appointment'
+        );
+      }
+
+      state.manage = data;
+
+      if (
+        data.appointment?.status ===
+        'cancelled'
+      ) {
+        renderManageMessage(
+          'APPOINTMENT CANCELLED',
+          'This appointment has already been cancelled.'
+        );
+        return;
+      }
+
+      if (
+        appointmentAction ===
+        'cancel'
+      ) {
+        renderPublicCancel();
+      } else {
+        renderPublicReschedule();
+      }
+    } catch (error) {
+      renderSetupError(
+        'Could not load appointment.',
+        error.message ||
+        'Please try again later.'
+      );
+    }
+  }
+
+  function renderManageMessage(title, copy) {
+    content.innerHTML = `
+      <div class="booking-success">
+        <div class="success-mark">✓</div>
+        <p class="booking-kicker">ZISTO APPOINTMENTS</p>
+        <h3>${escapeHtml(title)}</h3>
+        <p class="step-copy">${escapeHtml(copy)}</p>
+        <button type="button" class="primary-button" id="manage-done">DONE</button>
+      </div>
+    `;
+
+    document
+      .getElementById('manage-done')
+      .addEventListener(
+        'click',
+        closeBooking
+      );
+  }
+
+  function renderPublicCancel() {
+    const appointment =
+      state.manage?.appointment;
+    const business =
+      state.manage?.business;
+
+    const startsAt =
+      new Date(
+        appointment.starts_at
+      );
+
+    content.innerHTML = `
+      <div class="booking-step">
+        <p class="step-number">MANAGE APPOINTMENT</p>
+        <h3>CANCEL APPOINTMENT?</h3>
+        <p class="step-copy">
+          ${escapeHtml(business?.name || '')}
+        </p>
+
+        <div class="booking-summary">
+          <strong>${escapeHtml(appointment.service?.name || 'Appointment')}</strong><br>
+          ${escapeHtml(formatManageDate(startsAt))} ·
+          ${escapeHtml(formatManageTime(startsAt))}
+          ${appointment.staff?.name ? '<br>' + escapeHtml(appointment.staff.name) : ''}
+        </div>
+
+        <p class="booking-error" id="manage-error" hidden></p>
+
+        <div class="form-actions">
+          <button type="button" class="back-step" id="keep-appointment">
+            KEEP APPOINTMENT
+          </button>
+          <button type="button" class="confirm-button" id="confirm-public-cancel">
+            CANCEL APPOINTMENT
+          </button>
+        </div>
+      </div>
+    `;
+
+    document
+      .getElementById('keep-appointment')
+      .addEventListener(
+        'click',
+        closeBooking
+      );
+
+    document
+      .getElementById('confirm-public-cancel')
+      .addEventListener(
+        'click',
+        submitPublicCancel
+      );
+  }
+
+  async function submitPublicCancel() {
+    const button =
+      document.getElementById(
+        'confirm-public-cancel'
+      );
+
+    const errorBox =
+      document.getElementById(
+        'manage-error'
+      );
+
+    button.disabled = true;
+    button.textContent = 'CANCELLING…';
+    errorBox.hidden = true;
+
+    try {
+      const response = await fetch(
+        endpoint,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              'application/json',
+          },
+          body: JSON.stringify({
+            action:
+              'appointment_public_cancel',
+            appointment_token:
+              appointmentToken,
+          }),
+        }
+      );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+          'Cancellation failed'
+        );
+      }
+
+      renderManageMessage(
+        'APPOINTMENT CANCELLED',
+        'Your appointment has been cancelled successfully.'
+      );
+    } catch (error) {
+      errorBox.textContent =
+        humanizeError(
+          error.message ||
+          'Cancellation failed'
+        );
+
+      errorBox.hidden = false;
+      button.disabled = false;
+      button.textContent =
+        'CANCEL APPOINTMENT';
+    }
+  }
+
+  function renderPublicReschedule() {
+    const appointment =
+      state.manage?.appointment;
+
+    if (!appointment?.service) {
+      renderSetupError(
+        'Could not change appointment.',
+        'The service is no longer available.'
+      );
+      return;
+    }
+
+    const dates =
+      buildManageDates();
+
+    if (
+      !state.manageDate ||
+      !dates.some(
+        (date) =>
+          sameDate(
+            date,
+            state.manageDate
+          )
+      )
+    ) {
+      state.manageDate =
+        dates[0] || null;
+    }
+
+    const dateButtons =
+      dates
+        .slice(0, 10)
+        .map(
+          (date) => `
+            <button
+              type="button"
+              class="date-button${sameDate(date, state.manageDate) ? ' selected' : ''}"
+              data-manage-date="${date.toISOString()}"
+            >
+              <span>${weekdayShort(date)}</span>
+              <strong>${date.getDate()}</strong>
+            </button>
+          `
+        )
+        .join('');
+
+    const slots =
+      state.manageDate
+        ? buildManageSlots(
+            state.manageDate
+          )
+        : [];
+
+    const slotButtons =
+      slots.length
+        ? slots
+            .map(
+              (slot) => `
+                <button
+                  type="button"
+                  class="time-button"
+                  data-manage-minute="${slot.minutes}"
+                >
+                  ${escapeHtml(slot.label)}
+                </button>
+              `
+            )
+            .join('')
+        : '<p class="step-copy">No available times for this day.</p>';
+
+    content.innerHTML = `
+      <div class="booking-step">
+        <p class="step-number">MANAGE APPOINTMENT</p>
+        <h3>CHANGE DATE &amp; TIME</h3>
+        <p class="step-copy">
+          ${escapeHtml(appointment.service.name)}
+          ${appointment.staff?.name ? ' · ' + escapeHtml(appointment.staff.name) : ''}
+        </p>
+
+        <div class="date-strip">
+          ${dateButtons}
+        </div>
+
+        <div class="time-grid">
+          ${slotButtons}
+        </div>
+
+        <p class="booking-error" id="manage-error" hidden></p>
+      </div>
+    `;
+
+    content
+      .querySelectorAll(
+        '[data-manage-date]'
+      )
+      .forEach((button) => {
+        button.addEventListener(
+          'click',
+          () => {
+            state.manageDate =
+              new Date(
+                button.dataset.manageDate
+              );
+            state.manageTime = null;
+            renderPublicReschedule();
+          }
+        );
+      });
+
+    content
+      .querySelectorAll(
+        '[data-manage-minute]'
+      )
+      .forEach((button) => {
+        button.addEventListener(
+          'click',
+          () => {
+            state.manageTime = {
+              minutes: Number(
+                button.dataset.manageMinute
+              ),
+              label:
+                button.textContent.trim(),
+            };
+
+            void submitPublicReschedule();
+          }
+        );
+      });
+  }
+
+  function buildManageDates() {
+    const availability =
+      state.manage?.availability || [];
+
+    const result = [];
+    const now = new Date();
+    const staffId =
+      state.manage?.appointment?.staff?.id ||
+      null;
+
+    for (
+      let i = 0;
+      i < 28 && result.length < 14;
+      i += 1
+    ) {
+      const date = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + i
+      );
+
+      const weekday =
+        date.getDay();
+
+      const hasWindow =
+        availability.some(
+          (window) => {
+            if (
+              Number(window.weekday) !==
+              weekday
+            ) {
+              return false;
+            }
+
+            if (
+              window.staff_id &&
+              staffId &&
+              window.staff_id !==
+                staffId
+            ) {
+              return false;
+            }
+
+            if (
+              window.staff_id &&
+              !staffId
+            ) {
+              return false;
+            }
+
+            return true;
+          }
+        );
+
+      if (hasWindow) {
+        result.push(date);
+      }
+    }
+
+    return result;
+  }
+
+  function buildManageSlots(date) {
+    const availability =
+      state.manage?.availability || [];
+
+    const duration = Number(
+      state.manage?.appointment
+        ?.service?.duration_minutes ||
+      30
+    );
+
+    const staffId =
+      state.manage?.appointment?.staff?.id ||
+      null;
+
+    const weekday =
+      date.getDay();
+
+    const windows =
+      availability.filter(
+        (window) => {
+          if (
+            Number(window.weekday) !==
+            weekday
+          ) {
+            return false;
+          }
+
+          if (
+            window.staff_id &&
+            staffId &&
+            window.staff_id !== staffId
+          ) {
+            return false;
+          }
+
+          if (
+            window.staff_id &&
+            !staffId
+          ) {
+            return false;
+          }
+
+          return true;
+        }
+      );
+
+    const slots = [];
+    const now = new Date();
+
+    windows.forEach((window) => {
+      const start =
+        timeToMinutes(
+          window.starts_at
+        );
+
+      const end =
+        timeToMinutes(
+          window.ends_at
+        );
+
+      if (
+        start == null ||
+        end == null
+      ) {
+        return;
+      }
+
+      for (
+        let minute = start;
+        minute + duration <= end;
+        minute += 30
+      ) {
+        const candidate =
+          combineDateAndTime(
+            date,
+            minute
+          );
+
+        if (
+          candidate.getTime() <=
+          now.getTime() +
+            30 * 60 * 1000
+        ) {
+          continue;
+        }
+
+        slots.push({
+          minutes: minute,
+          label:
+            minutesToTime(minute),
+        });
+      }
+    });
+
+    return slots;
+  }
+
+  async function submitPublicReschedule() {
+    const errorBox =
+      document.getElementById(
+        'manage-error'
+      );
+
+    if (
+      !state.manageDate ||
+      !state.manageTime
+    ) {
+      return;
+    }
+
+    const start =
+      combineDateAndTime(
+        state.manageDate,
+        state.manageTime.minutes
+      );
+
+    content
+      .querySelectorAll('button')
+      .forEach((button) => {
+        button.disabled = true;
+      });
+
+    try {
+      const response = await fetch(
+        endpoint,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              'application/json',
+          },
+          body: JSON.stringify({
+            action:
+              'appointment_public_reschedule',
+            appointment_token:
+              appointmentToken,
+            starts_at:
+              start.toISOString(),
+          }),
+        }
+      );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+          'Could not change appointment'
+        );
+      }
+
+      renderManageMessage(
+        'APPOINTMENT UPDATED',
+        'Your appointment date and time have been changed successfully.'
+      );
+    } catch (error) {
+      renderPublicReschedule();
+
+      const refreshedError =
+        document.getElementById(
+          'manage-error'
+        );
+
+      refreshedError.textContent =
+        humanizeError(
+          error.message ||
+          'Could not change appointment'
+        );
+
+      refreshedError.hidden = false;
+    }
+  }
+
+  function formatManageDate(date) {
+    return new Intl.DateTimeFormat(
+      'en',
+      {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }
+    ).format(date);
+  }
+
+  function formatManageTime(date) {
+    return new Intl.DateTimeFormat(
+      'en',
+      {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }
+    ).format(date);
+  }
 
   async function openBooking() {
     backdrop.hidden = false;
