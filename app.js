@@ -3,7 +3,7 @@
   const projectKey = params.get('project_key') || '';
   const appointmentToken = params.get('appointment_token') || '';
   const appointmentAction = params.get('appointment_action') || '';
-  const apiBase = (params.get('api') || 'https://zisto.app').replace(/\/$/, '');
+  const apiBase = (params.get('api') || 'https://zisto.gr').replace(/\/$/, '');
   const endpoint = apiBase + '/api/track';
   const liveUrl =
     window.location.origin +
