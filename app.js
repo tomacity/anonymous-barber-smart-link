@@ -3,6 +3,9 @@
   const projectKey = params.get('project_key') || '';
   const apiBase = (params.get('api') || 'https://preview.zisto.app').replace(/\/$/, '');
   const endpoint = apiBase + '/api/track';
+  const liveUrl =
+    window.location.origin +
+    window.location.pathname;
 
   const state = {
     config: null,
@@ -42,11 +45,6 @@
 
     content.innerHTML = '<div class="booking-loading"><div class="spinner"></div><p>Loading availability…</p></div>';
 
-    if (!projectKey) {
-      renderSetupError('This Smart Link is not connected to a Zisto project yet.', 'Add ?project_key=YOUR_PROJECT_KEY to the URL.');
-      return;
-    }
-
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -54,6 +52,7 @@
         body: JSON.stringify({
           action: 'appointment_bootstrap',
           project_key: projectKey,
+          live_url: liveUrl,
         }),
       });
       const data = await response.json();
@@ -253,6 +252,7 @@
         body: JSON.stringify({
           action: 'appointment_book',
           project_key: projectKey,
+          live_url: liveUrl,
           service_id: state.service.id,
           staff_id: state.staff?.id || '',
           customer_name: formData.get('customer_name'),
