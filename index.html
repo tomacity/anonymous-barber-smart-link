@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#080808" />
+  <meta name="description" content="Anonymous Barber Shop — precision cuts, classic shaves and effortless booking." />
+  <title>Anonymous Barber Shop</title>
+  <link rel="preconnect" href="https://images.unsplash.com" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#home" aria-label="Anonymous Barber Shop home">
+      <span class="brand-mark" aria-hidden="true">A</span>
+      <span>ANONYMOUS</span>
+    </a>
+
+    <nav class="desktop-nav" aria-label="Primary navigation">
+      <a href="#home">HOME</a>
+      <a href="#story">STORY</a>
+      <a href="#services">SERVICES</a>
+      <button class="nav-book js-book" type="button">BOOK NOW</button>
+      <a href="#contact">CONTACT</a>
+    </nav>
+
+    <button class="mobile-book js-book" type="button">BOOK</button>
+  </header>
+
+  <main>
+    <section class="hero" id="home">
+      <div class="hero-overlay"></div>
+      <div class="hero-content">
+        <div class="crest" aria-hidden="true">
+          <span class="crest-skull">☠</span>
+          <span class="crest-lines">╳</span>
+        </div>
+        <p class="hero-kicker">EST. 2024 · ATHENS</p>
+        <h1><span>ANONYMOUS</span> BARBER SHOP</h1>
+        <p class="hero-copy">Where tradition meets modern precision.<br />Not just a haircut — an experience.</p>
+        <button class="primary-button js-book" type="button">BOOK APPOINTMENT</button>
+      </div>
+      <a href="#story" class="scroll-cue" aria-label="Scroll to story">↓</a>
+    </section>
+
+    <section class="story shell" id="story">
+      <div class="story-copy">
+        <p class="eyebrow">THE CRAFT</p>
+        <h2>MASTERY IN<br />EVERY CUT</h2>
+        <p>
+          Precision cuts and classic shaves for the modern gentleman.
+          We pair timeless technique with clean lines, good conversation
+          and a calm space built around the ritual of grooming.
+        </p>
+        <a href="#services" class="text-link">OUR SERVICES <span>→</span></a>
+      </div>
+
+      <div class="story-image-wrap">
+        <img
+          src="https://images.unsplash.com/photo-1635531955929-91958b3b33ea?auto=format&fit=crop&w=1400&q=88"
+          alt="Barber chairs inside a monochrome barbershop"
+          class="story-image"
+        />
+      </div>
+    </section>
+
+    <section class="services shell" id="services">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">PRECISION. DETAIL. CHARACTER.</p>
+          <h2>SERVICES</h2>
+        </div>
+        <button class="text-button js-book" type="button">BOOK APPOINTMENT →</button>
+      </div>
+
+      <div class="service-grid" id="service-grid">
+        <article class="service-card">
+          <div>
+            <h3>HAIRCUT &amp; BEARD</h3>
+            <p>Classic cut, beard sculpting and hot towel finish.</p>
+          </div>
+          <div class="service-meta"><span>40 min</span><span>€18</span></div>
+        </article>
+        <article class="service-card">
+          <div>
+            <h3>FAST CUT</h3>
+            <p>Clean-up and precise detailing when time matters.</p>
+          </div>
+          <div class="service-meta"><span>20 min</span><span>€12</span></div>
+        </article>
+        <article class="service-card">
+          <div>
+            <h3>CLASSIC CUT</h3>
+            <p>Scissor and clipper work tailored to your style.</p>
+          </div>
+          <div class="service-meta"><span>30 min</span><span>€15</span></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="quote">
+      <div class="quote-inner">
+        <div class="stars">★★★★★</div>
+        <blockquote>“THE BEST CUT IN THE CITY. HANDS DOWN.<br />THE ATMOSPHERE IS UNMATCHED.”</blockquote>
+        <cite>— ANONYMOUS CLIENT</cite>
+      </div>
+    </section>
+
+    <section class="final-cta shell">
+      <p class="eyebrow">YOUR NEXT CUT</p>
+      <h2>READY WHEN YOU ARE.</h2>
+      <button class="primary-button js-book" type="button">BOOK APPOINTMENT</button>
+    </section>
+  </main>
+
+  <footer id="contact">
+    <div class="footer-grid shell">
+      <div>
+        <div class="brand footer-brand">
+          <span class="brand-mark">A</span>
+          <span>ANONYMOUS</span>
+        </div>
+        <p>Precision cuts and classic shaves for the modern gentleman.</p>
+      </div>
+
+      <div>
+        <p class="footer-title">CONTACT</p>
+        <p>Πλατεία Ηρώων, Ερμούπολη</p>
+        <p>+30 555 123 4567</p>
+      </div>
+
+      <div>
+        <p class="footer-title">HOURS</p>
+        <p>Mon — Fri · 10:00 — 20:00</p>
+        <p>Saturday · 10:00 — 18:00</p>
+        <p>Sunday · Closed</p>
+      </div>
+
+      <div>
+        <p class="footer-title">BOOKING</p>
+        <button class="footer-book js-book" type="button">BOOK YOUR APPOINTMENT →</button>
+      </div>
+    </div>
+    <p class="copyright">© 2026 ANONYMOUS BARBER SHOP · POWERED BY ZISTO</p>
+  </footer>
+
+  <div class="booking-backdrop" id="booking-backdrop" hidden>
+    <section class="booking-panel" role="dialog" aria-modal="true" aria-labelledby="booking-title">
+      <div class="booking-top">
+        <div>
+          <p class="booking-kicker">BOOK YOUR CUT</p>
+          <h2 id="booking-title">APPOINTMENT</h2>
+        </div>
+        <button type="button" class="close-booking" id="close-booking" aria-label="Close booking">×</button>
+      </div>
+
+      <div class="booking-progress" aria-hidden="true">
+        <span class="active"></span><span></span><span></span><span></span>
+      </div>
+
+      <div id="booking-content">
+        <div class="booking-loading">
+          <div class="spinner"></div>
+          <p>Loading availability…</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <template id="step-services">
+    <div class="booking-step">
+      <p class="step-number">01 / 04</p>
+      <h3>CHOOSE YOUR SERVICE</h3>
+      <p class="step-copy">Select what you want to book.</p>
+      <div class="option-list" id="booking-services"></div>
+    </div>
+  </template>
+
+  <template id="step-staff">
+    <div class="booking-step">
+      <p class="step-number">02 / 04</p>
+      <h3>CHOOSE YOUR BARBER</h3>
+      <p class="step-copy">Pick your barber or continue with the first available.</p>
+      <div class="option-list" id="booking-staff"></div>
+    </div>
+  </template>
+
+  <template id="step-time">
+    <div class="booking-step">
+      <p class="step-number">03 / 04</p>
+      <h3>DATE &amp; TIME</h3>
+      <p class="step-copy">Choose a day and an available time.</p>
+      <div class="date-strip" id="booking-dates"></div>
+      <div class="time-grid" id="booking-times"></div>
+      <button type="button" class="back-step" data-back="staff">← BACK</button>
+    </div>
+  </template>
+
+  <template id="step-details">
+    <form class="booking-step" id="details-form">
+      <p class="step-number">04 / 04</p>
+      <h3>YOUR DETAILS</h3>
+      <p class="step-copy">We’ll use these details only for your appointment.</p>
+
+      <label>
+        <span>NAME</span>
+        <input name="customer_name" autocomplete="name" required placeholder="Your name" />
+      </label>
+      <div class="form-two">
+        <label>
+          <span>PHONE</span>
+          <input name="customer_phone" autocomplete="tel" placeholder="+30…" />
+        </label>
+        <label>
+          <span>EMAIL</span>
+          <input name="customer_email" type="email" autocomplete="email" placeholder="you@email.com" />
+        </label>
+      </div>
+      <label>
+        <span>NOTE <em>OPTIONAL</em></span>
+        <textarea name="notes" rows="3" placeholder="Anything we should know?"></textarea>
+      </label>
+
+      <div class="booking-summary" id="booking-summary"></div>
+      <p class="booking-error" id="booking-error" hidden></p>
+
+      <div class="form-actions">
+        <button type="button" class="back-step" data-back="time">← BACK</button>
+        <button type="submit" class="confirm-button">CONFIRM APPOINTMENT</button>
+      </div>
+    </form>
+  </template>
+
+  <template id="step-success">
+    <div class="booking-success">
+      <div class="success-mark">✓</div>
+      <p class="booking-kicker">YOU’RE BOOKED</p>
+      <h3>SEE YOU SOON.</h3>
+      <div id="success-summary" class="success-summary"></div>
+      <button type="button" class="primary-button" id="finish-booking">DONE</button>
+    </div>
+  </template>
+
+  <script src="./app.js" defer></script>
+</body>
+</html>
