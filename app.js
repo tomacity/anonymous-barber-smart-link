@@ -495,7 +495,10 @@
           }
         );
 
-      if (hasWindow) {
+      if (
+        hasWindow &&
+        buildManageSlots(date).length > 0
+      ) {
         result.push(date);
       }
     }
@@ -645,7 +648,17 @@
       }
     });
 
-    return slots;
+    return [
+      ...new Map(
+        slots.map((slot) => [
+          slot.minutes,
+          slot,
+        ])
+      ).values(),
+    ].sort(
+      (a, b) =>
+        a.minutes - b.minutes
+    );
   }
 
   async function submitPublicReschedule() {
@@ -1011,7 +1024,12 @@
         if (window.staff_id && !state.staff) return false;
         return true;
       });
-      if (hasWindow) result.push(date);
+      if (
+        hasWindow &&
+        buildSlots(date).length > 0
+      ) {
+        result.push(date);
+      }
     }
     return result;
   }
@@ -1051,7 +1069,17 @@
         slots.push({minutes: minute, label: minutesToTime(minute)});
       }
     });
-    return slots;
+    return [
+      ...new Map(
+        slots.map((slot) => [
+          slot.minutes,
+          slot,
+        ])
+      ).values(),
+    ].sort(
+      (a, b) =>
+        a.minutes - b.minutes
+    );
   }
 
   function combineDateAndTime(date, minutes) {
