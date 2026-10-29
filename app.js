@@ -3,11 +3,69 @@
   const projectKey = params.get('project_key') || '';
   const appointmentToken = params.get('appointment_token') || '';
   const appointmentAction = params.get('appointment_action') || '';
-  const apiBase = (params.get('api') || 'https://preview.zisto.app').replace(/\/$/, '');
+  const apiBase = (params.get('api') || 'https://zisto.app').replace(/\/$/, '');
   const endpoint = apiBase + '/api/track';
   const liveUrl =
     window.location.origin +
     window.location.pathname;
+
+  const sessionId =
+    getOrCreateId(
+      sessionStorage,
+      'zisto_session_id'
+    );
+
+  const visitorId =
+    getOrCreateId(
+      localStorage,
+      'zisto_visitor_id'
+    );
+
+  function getOrCreateId(storage, key) {
+    let value = storage.getItem(key);
+
+    if (!value) {
+      value =
+        typeof crypto !== 'undefined' &&
+        typeof crypto.randomUUID ===
+          'function'
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random()
+              .toString(36)
+              .slice(2)}`;
+
+      storage.setItem(key, value);
+    }
+
+    return value;
+  }
+
+  function track(eventType, metadata = {}) {
+    void fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type':
+          'application/json',
+      },
+      body: JSON.stringify({
+        project_key: projectKey,
+        live_url: liveUrl,
+        event_type: eventType,
+        session_id: sessionId,
+        visitor_id: visitorId,
+        page_url:
+          window.location.href,
+        page_path:
+          window.location.pathname,
+        referrer:
+          document.referrer || '',
+        metadata,
+      }),
+      keepalive: true,
+    }).catch(() => {});
+  }
+
+  track('page_view');
 
   const state = {
     config: null,
@@ -27,7 +85,16 @@
   const progress = [...document.querySelectorAll('.booking-progress span')];
 
   document.querySelectorAll('.js-book').forEach((button) => {
-    button.addEventListener('click', openBooking);
+    button.addEventListener('click', () => {
+      track('button_click', {
+        action: 'book_appointment',
+        label:
+          button.textContent?.trim() ||
+          'BOOK',
+      });
+
+      openBooking();
+    });
   });
 
   document.getElementById('close-booking').addEventListener('click', closeBooking);
@@ -80,6 +147,14 @@
         renderManageMessage(
           'APPOINTMENT CANCELLED',
           'This appointment has already been cancelled.'
+        );
+        return;
+      }
+
+      if (data.can_manage === false) {
+        renderManageMessage(
+          'APPOINTMENT LOCKED',
+          'This appointment can no longer be changed or cancelled.'
         );
         return;
       }
@@ -428,6 +503,43 @@
     return result;
   }
 
+  function isBusySlot(
+    candidate,
+    durationMinutes,
+    busyItems,
+    staffId
+  ) {
+    const candidateEnd =
+      new Date(
+        candidate.getTime() +
+          durationMinutes * 60_000
+      );
+
+    return (busyItems || []).some(
+      (busy) => {
+        const sameResource =
+          staffId
+            ? busy.staff_id === staffId
+            : !busy.staff_id;
+
+        if (!sameResource) {
+          return false;
+        }
+
+        const busyStart =
+          new Date(busy.starts_at);
+
+        const busyEnd =
+          new Date(busy.ends_at);
+
+        return (
+          candidate < busyEnd &&
+          candidateEnd > busyStart
+        );
+      }
+    );
+  }
+
   function buildManageSlots(date) {
     const availability =
       state.manage?.availability || [];
@@ -510,6 +622,17 @@
           candidate.getTime() <=
           now.getTime() +
             30 * 60 * 1000
+        ) {
+          continue;
+        }
+
+        if (
+          isBusySlot(
+            candidate,
+            duration,
+            state.manage?.busy || [],
+            staffId
+          )
         ) {
           continue;
         }
@@ -914,6 +1037,17 @@
       for (let minute = start; minute + duration <= end; minute += 30) {
         const candidate = combineDateAndTime(date, minute);
         if (candidate.getTime() <= now.getTime() + 30 * 60 * 1000) continue;
+        if (
+          isBusySlot(
+            candidate,
+            duration,
+            state.config?.busy || [],
+            state.staff?.id || null
+          )
+        ) {
+          continue;
+        }
+
         slots.push({minutes: minute, label: minutesToTime(minute)});
       }
     });
@@ -962,6 +1096,9 @@
     if (lower.includes('no longer available')) return 'That time was just booked. Please choose another slot.';
     if (lower.includes('outside available')) return 'That time is outside the available booking hours.';
     if (lower.includes('staff member is required')) return 'Please choose a barber.';
+    if (lower.includes('too many booking attempts')) return 'Too many booking attempts. Please try again a little later.';
+    if (lower.includes('can no longer be changed')) return 'This appointment can no longer be changed.';
+    if (lower.includes('can no longer be cancelled')) return 'This appointment can no longer be cancelled.';
     return message;
   }
 
