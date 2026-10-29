@@ -45,7 +45,7 @@
       method: 'POST',
       headers: {
         'Content-Type':
-          'application/json',
+          'text/plain;charset=UTF-8',
       },
       body: JSON.stringify({
         project_key: projectKey,
@@ -122,7 +122,7 @@
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: {'Content-Type':'application/json'},
+        headers: {'Content-Type':'text/plain;charset=UTF-8'},
         body: JSON.stringify({
           action: 'appointment_manage',
           appointment_token: appointmentToken,
@@ -271,7 +271,7 @@
           method: 'POST',
           headers: {
             'Content-Type':
-              'application/json',
+              'text/plain;charset=UTF-8',
           },
           body: JSON.stringify({
             action:
@@ -698,7 +698,7 @@
           method: 'POST',
           headers: {
             'Content-Type':
-              'application/json',
+              'text/plain;charset=UTF-8',
           },
           body: JSON.stringify({
             action:
@@ -786,7 +786,7 @@
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: {'Content-Type':'application/json'},
+        headers: {'Content-Type':'text/plain;charset=UTF-8'},
         body: JSON.stringify({
           action: 'appointment_bootstrap',
           project_key: projectKey,
@@ -986,7 +986,7 @@
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: {'Content-Type':'application/json'},
+        headers: {'Content-Type':'text/plain;charset=UTF-8'},
         body: JSON.stringify({
           action: 'appointment_book',
           project_key: projectKey,
