@@ -54,7 +54,7 @@
         session_id: sessionId,
         visitor_id: visitorId,
         page_url:
-          window.location.href,
+          liveUrl,
         page_path:
           window.location.pathname,
         referrer:
