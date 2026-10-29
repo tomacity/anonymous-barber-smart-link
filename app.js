@@ -292,6 +292,11 @@
         );
       }
 
+      track('button_click', {
+        action:
+          'appointment_cancelled',
+      });
+
       renderManageMessage(
         'APPOINTMENT CANCELLED',
         'Your appointment has been cancelled successfully.'
@@ -716,6 +721,11 @@
         );
       }
 
+      track('button_click', {
+        action:
+          'appointment_rescheduled',
+      });
+
       renderManageMessage(
         'APPOINTMENT UPDATED',
         'Your appointment date and time have been changed successfully.'
@@ -993,6 +1003,13 @@
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Booking failed');
+      track('button_click', {
+        action:
+          'appointment_booked',
+        service:
+          state.service?.name || '',
+      });
+
       renderSuccess(data);
     } catch (error) {
       errorBox.textContent = humanizeError(error.message || 'Booking failed');
