@@ -297,6 +297,7 @@
                   type="button"
                   class="time-button"
                   data-manage-minute="${slot.minutes}"
+                  ${slot.busy ? 'disabled aria-disabled="true" title="Unavailable" style="opacity:.32;cursor:not-allowed"' : ''}
                 >
                   ${escapeHtml(slot.label)}
                 </button>
@@ -432,6 +433,9 @@
     const availability =
       state.manage?.availability || [];
 
+    const busy =
+      state.manage?.busy || [];
+
     const duration = Number(
       state.manage?.appointment
         ?.service?.duration_minutes ||
@@ -514,10 +518,65 @@
           continue;
         }
 
+        const candidateEnd =
+          new Date(
+            candidate.getTime() +
+            duration * 60 * 1000
+          );
+
+        const overlapsBusy =
+          busy.some(
+            (appointment) => {
+              if (
+                appointment.staff_id &&
+                staffId &&
+                appointment.staff_id !==
+                  staffId
+              ) {
+                return false;
+              }
+
+              if (
+                appointment.staff_id &&
+                !staffId
+              ) {
+                return false;
+              }
+
+              const busyStart =
+                new Date(
+                  appointment.starts_at
+                );
+
+              const busyEnd =
+                new Date(
+                  appointment.ends_at
+                );
+
+              if (
+                Number.isNaN(
+                  busyStart.getTime()
+                ) ||
+                Number.isNaN(
+                  busyEnd.getTime()
+                )
+              ) {
+                return false;
+              }
+
+              return (
+                candidate < busyEnd &&
+                candidateEnd > busyStart
+              );
+            }
+          );
+
         slots.push({
           minutes: minute,
           label:
             minutesToTime(minute),
+          busy:
+            overlapsBusy,
         });
       }
     });
