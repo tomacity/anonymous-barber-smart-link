@@ -895,6 +895,7 @@
 
   function buildSlots(date) {
     const availability = state.config?.availability || [];
+    const busy = state.config?.busy || [];
     const duration = Number(state.service?.duration_minutes || 30);
     const weekday = date.getDay();
     const windows = availability.filter((window) => {
@@ -914,6 +915,20 @@
       for (let minute = start; minute + duration <= end; minute += 30) {
         const candidate = combineDateAndTime(date, minute);
         if (candidate.getTime() <= now.getTime() + 30 * 60 * 1000) continue;
+
+        const candidateEnd = new Date(candidate.getTime() + duration * 60 * 1000);
+        const overlapsBusy = busy.some((appointment) => {
+          if (appointment.staff_id && state.staff?.id && appointment.staff_id !== state.staff.id) return false;
+          if (appointment.staff_id && !state.staff) return false;
+
+          const busyStart = new Date(appointment.starts_at);
+          const busyEnd = new Date(appointment.ends_at);
+          if (Number.isNaN(busyStart.getTime()) || Number.isNaN(busyEnd.getTime())) return false;
+
+          return candidate < busyEnd && candidateEnd > busyStart;
+        });
+
+        if (overlapsBusy) continue;
         slots.push({minutes: minute, label: minutesToTime(minute)});
       }
     });
