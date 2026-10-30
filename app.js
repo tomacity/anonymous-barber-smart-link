@@ -68,6 +68,30 @@
           continue;
         }
 
+        if (looksLikeApi && response.status >= 500) {
+          let serverMessage = '';
+
+          try {
+            const diagnostic =
+              await response.clone().json();
+
+            serverMessage =
+              String(
+                diagnostic?.error || ''
+              ).toLowerCase();
+          } catch {
+            serverMessage = '';
+          }
+
+          if (
+            serverMessage.includes(
+              'missing server configuration'
+            )
+          ) {
+            continue;
+          }
+        }
+
         activeApiBase = base;
         return response;
       } catch (error) {
