@@ -3,168 +3,11 @@
   const projectKey = params.get('project_key') || '';
   const appointmentToken = params.get('appointment_token') || '';
   const appointmentAction = params.get('appointment_action') || '';
-  const apiOverride =
-    (params.get('api') || '').replace(/\/$/, '');
-
-  const apiBases = apiOverride
-    ? [apiOverride]
-    : [
-        'https://zisto.gr',
-        'https://zisto-gr.vercel.app',
-        'https://zisto-hero-glance-main.vercel.app',
-        'https://preview.zisto.app',
-      ];
-
-  let activeApiBase = null;
-
+  const apiBase = (params.get('api') || 'https://zisto.gr').replace(/\/$/, '');
+  const endpoint = apiBase + '/api/track';
   const liveUrl =
     window.location.origin +
     window.location.pathname;
-
-  async function postApi(payload, options = {}) {
-    const candidates = activeApiBase
-      ? [
-          activeApiBase,
-          ...apiBases.filter(
-            (base) => base !== activeApiBase
-          ),
-        ]
-      : apiBases;
-
-    let lastNetworkError = null;
-
-    for (const base of candidates) {
-      try {
-        const response = await fetch(
-          base + '/api/track',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type':
-                'application/x-www-form-urlencoded;charset=UTF-8',
-            },
-            body:
-              new URLSearchParams({
-                payload:
-                  JSON.stringify(payload),
-              }).toString(),
-            keepalive:
-              options.keepalive === true,
-          }
-        );
-
-        const contentType =
-          response.headers.get(
-            'content-type'
-          ) || '';
-
-        const looksLikeApi =
-          contentType.includes(
-            'application/json'
-          );
-
-        if (
-          !looksLikeApi &&
-          [401, 403, 404, 405, 500, 502, 503, 504].includes(
-            response.status
-          )
-        ) {
-          continue;
-        }
-
-        if (looksLikeApi && response.status >= 500) {
-          let serverMessage = '';
-
-          try {
-            const diagnostic =
-              await response.clone().json();
-
-            serverMessage =
-              String(
-                diagnostic?.error || ''
-              ).toLowerCase();
-          } catch {
-            serverMessage = '';
-          }
-
-          if (
-            serverMessage.includes(
-              'missing server configuration'
-            )
-          ) {
-            continue;
-          }
-        }
-
-        activeApiBase = base;
-        return response;
-      } catch (error) {
-        lastNetworkError = error;
-      }
-    }
-
-    throw (
-      lastNetworkError ||
-      new Error(
-        'Could not reach the Zisto booking API.'
-      )
-    );
-  }
-
-  const sessionId =
-    getOrCreateId(
-      sessionStorage,
-      'zisto_session_id'
-    );
-
-  const visitorId =
-    getOrCreateId(
-      localStorage,
-      'zisto_visitor_id'
-    );
-
-  function getOrCreateId(storage, key) {
-    let value = storage.getItem(key);
-
-    if (!value) {
-      value =
-        typeof crypto !== 'undefined' &&
-        typeof crypto.randomUUID ===
-          'function'
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random()
-              .toString(36)
-              .slice(2)}`;
-
-      storage.setItem(key, value);
-    }
-
-    return value;
-  }
-
-  function track(eventType, metadata = {}) {
-    void postApi(
-      {
-        project_key: projectKey,
-        live_url: liveUrl,
-        event_type: eventType,
-        session_id: sessionId,
-        visitor_id: visitorId,
-        page_url:
-          liveUrl,
-        page_path:
-          window.location.pathname,
-        referrer:
-          document.referrer || '',
-        metadata,
-      },
-      {
-        keepalive: true,
-      }
-    ).catch(() => {});
-  }
-
-  track('page_view');
 
   const state = {
     config: null,
@@ -184,16 +27,7 @@
   const progress = [...document.querySelectorAll('.booking-progress span')];
 
   document.querySelectorAll('.js-book').forEach((button) => {
-    button.addEventListener('click', () => {
-      track('button_click', {
-        action: 'book_appointment',
-        label:
-          button.textContent?.trim() ||
-          'BOOK',
-      });
-
-      openBooking();
-    });
+    button.addEventListener('click', openBooking);
   });
 
   document.getElementById('close-booking').addEventListener('click', closeBooking);
@@ -219,9 +53,13 @@
     content.innerHTML = '<div class="booking-loading"><div class="spinner"></div><p>Loading appointment…</p></div>';
 
     try {
-      const response = await postApi({
-        action: 'appointment_manage',
-        appointment_token: appointmentToken,
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          action: 'appointment_manage',
+          appointment_token: appointmentToken,
+        }),
       });
 
       const data = await response.json();
@@ -242,14 +80,6 @@
         renderManageMessage(
           'APPOINTMENT CANCELLED',
           'This appointment has already been cancelled.'
-        );
-        return;
-      }
-
-      if (data.can_manage === false) {
-        renderManageMessage(
-          'APPOINTMENT LOCKED',
-          'This appointment can no longer be changed or cancelled.'
         );
         return;
       }
@@ -360,12 +190,22 @@
     errorBox.hidden = true;
 
     try {
-      const response = await postApi({
-        action:
-          'appointment_public_cancel',
-        appointment_token:
-          appointmentToken,
-      });
+      const response = await fetch(
+        endpoint,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              'application/json',
+          },
+          body: JSON.stringify({
+            action:
+              'appointment_public_cancel',
+            appointment_token:
+              appointmentToken,
+          }),
+        }
+      );
 
       const data =
         await response.json();
@@ -376,11 +216,6 @@
           'Cancellation failed'
         );
       }
-
-      track('button_click', {
-        action:
-          'appointment_cancelled',
-      });
 
       renderManageMessage(
         'APPOINTMENT CANCELLED',
@@ -585,52 +420,12 @@
           }
         );
 
-      if (
-        hasWindow &&
-        buildManageSlots(date).length > 0
-      ) {
+      if (hasWindow) {
         result.push(date);
       }
     }
 
     return result;
-  }
-
-  function isBusySlot(
-    candidate,
-    durationMinutes,
-    busyItems,
-    staffId
-  ) {
-    const candidateEnd =
-      new Date(
-        candidate.getTime() +
-          durationMinutes * 60_000
-      );
-
-    return (busyItems || []).some(
-      (busy) => {
-        const sameResource =
-          staffId
-            ? busy.staff_id === staffId
-            : !busy.staff_id;
-
-        if (!sameResource) {
-          return false;
-        }
-
-        const busyStart =
-          new Date(busy.starts_at);
-
-        const busyEnd =
-          new Date(busy.ends_at);
-
-        return (
-          candidate < busyEnd &&
-          candidateEnd > busyStart
-        );
-      }
-    );
   }
 
   function buildManageSlots(date) {
@@ -719,17 +514,6 @@
           continue;
         }
 
-        if (
-          isBusySlot(
-            candidate,
-            duration,
-            state.manage?.busy || [],
-            staffId
-          )
-        ) {
-          continue;
-        }
-
         slots.push({
           minutes: minute,
           label:
@@ -738,17 +522,7 @@
       }
     });
 
-    return [
-      ...new Map(
-        slots.map((slot) => [
-          slot.minutes,
-          slot,
-        ])
-      ).values(),
-    ].sort(
-      (a, b) =>
-        a.minutes - b.minutes
-    );
+    return slots;
   }
 
   async function submitPublicReschedule() {
@@ -777,14 +551,24 @@
       });
 
     try {
-      const response = await postApi({
-        action:
-          'appointment_public_reschedule',
-        appointment_token:
-          appointmentToken,
-        starts_at:
-          start.toISOString(),
-      });
+      const response = await fetch(
+        endpoint,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              'application/json',
+          },
+          body: JSON.stringify({
+            action:
+              'appointment_public_reschedule',
+            appointment_token:
+              appointmentToken,
+            starts_at:
+              start.toISOString(),
+          }),
+        }
+      );
 
       const data =
         await response.json();
@@ -795,11 +579,6 @@
           'Could not change appointment'
         );
       }
-
-      track('button_click', {
-        action:
-          'appointment_rescheduled',
-      });
 
       renderManageMessage(
         'APPOINTMENT UPDATED',
@@ -859,10 +638,14 @@
     content.innerHTML = '<div class="booking-loading"><div class="spinner"></div><p>Loading availability…</p></div>';
 
     try {
-      const response = await postApi({
-        action: 'appointment_bootstrap',
-        project_key: projectKey,
-        live_url: liveUrl,
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          action: 'appointment_bootstrap',
+          project_key: projectKey,
+          live_url: liveUrl,
+        }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Could not load booking');
@@ -1055,28 +838,25 @@
     const start = combineDateAndTime(state.date, state.time.minutes);
 
     try {
-      const response = await postApi({
-        action: 'appointment_book',
-        project_key: projectKey,
-        live_url: liveUrl,
-        service_id: state.service.id,
-        staff_id: state.staff?.id || '',
-        customer_name: formData.get('customer_name'),
-        customer_phone: formData.get('customer_phone'),
-        customer_email: formData.get('customer_email'),
-        notes: formData.get('notes'),
-        starts_at: start.toISOString(),
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          action: 'appointment_book',
+          project_key: projectKey,
+          live_url: liveUrl,
+          service_id: state.service.id,
+          staff_id: state.staff?.id || '',
+          customer_name: formData.get('customer_name'),
+          customer_phone: formData.get('customer_phone'),
+          customer_email: formData.get('customer_email'),
+          notes: formData.get('notes'),
+          starts_at: start.toISOString(),
+        }),
       });
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Booking failed');
-      track('button_click', {
-        action:
-          'appointment_booked',
-        service:
-          state.service?.name || '',
-      });
-
       renderSuccess(data);
     } catch (error) {
       errorBox.textContent = humanizeError(error.message || 'Booking failed');
@@ -1108,12 +888,7 @@
         if (window.staff_id && !state.staff) return false;
         return true;
       });
-      if (
-        hasWindow &&
-        buildSlots(date).length > 0
-      ) {
-        result.push(date);
-      }
+      if (hasWindow) result.push(date);
     }
     return result;
   }
@@ -1139,31 +914,10 @@
       for (let minute = start; minute + duration <= end; minute += 30) {
         const candidate = combineDateAndTime(date, minute);
         if (candidate.getTime() <= now.getTime() + 30 * 60 * 1000) continue;
-        if (
-          isBusySlot(
-            candidate,
-            duration,
-            state.config?.busy || [],
-            state.staff?.id || null
-          )
-        ) {
-          continue;
-        }
-
         slots.push({minutes: minute, label: minutesToTime(minute)});
       }
     });
-    return [
-      ...new Map(
-        slots.map((slot) => [
-          slot.minutes,
-          slot,
-        ])
-      ).values(),
-    ].sort(
-      (a, b) =>
-        a.minutes - b.minutes
-    );
+    return slots;
   }
 
   function combineDateAndTime(date, minutes) {
@@ -1208,9 +962,6 @@
     if (lower.includes('no longer available')) return 'That time was just booked. Please choose another slot.';
     if (lower.includes('outside available')) return 'That time is outside the available booking hours.';
     if (lower.includes('staff member is required')) return 'Please choose a barber.';
-    if (lower.includes('too many booking attempts')) return 'Too many booking attempts. Please try again a little later.';
-    if (lower.includes('can no longer be changed')) return 'This appointment can no longer be changed.';
-    if (lower.includes('can no longer be cancelled')) return 'This appointment can no longer be cancelled.';
     return message;
   }
 
