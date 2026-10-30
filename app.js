@@ -796,10 +796,20 @@
         button.type = 'button';
         button.className = 'time-button';
         button.textContent = slot.label;
-        button.addEventListener('click', () => {
-          state.time = slot;
-          renderDetails();
-        });
+
+        if (slot.busy) {
+          button.disabled = true;
+          button.setAttribute('aria-disabled', 'true');
+          button.title = 'Unavailable';
+          button.style.opacity = '0.32';
+          button.style.cursor = 'not-allowed';
+        } else {
+          button.addEventListener('click', () => {
+            state.time = slot;
+            renderDetails();
+          });
+        }
+
         timeWrap.appendChild(button);
       });
     }
@@ -928,8 +938,11 @@
           return candidate < busyEnd && candidateEnd > busyStart;
         });
 
-        if (overlapsBusy) continue;
-        slots.push({minutes: minute, label: minutesToTime(minute)});
+        slots.push({
+          minutes: minute,
+          label: minutesToTime(minute),
+          busy: overlapsBusy,
+        });
       }
     });
     return slots;
