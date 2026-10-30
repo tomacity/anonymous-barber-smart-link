@@ -41,9 +41,13 @@
             method: 'POST',
             headers: {
               'Content-Type':
-                'text/plain;charset=UTF-8',
+                'application/x-www-form-urlencoded;charset=UTF-8',
             },
-            body: JSON.stringify(payload),
+            body:
+              new URLSearchParams({
+                payload:
+                  JSON.stringify(payload),
+              }).toString(),
             keepalive:
               options.keepalive === true,
           }
