@@ -3,11 +3,85 @@
   const projectKey = params.get('project_key') || '';
   const appointmentToken = params.get('appointment_token') || '';
   const appointmentAction = params.get('appointment_action') || '';
-  const apiBase = (params.get('api') || 'https://zisto.gr').replace(/\/$/, '');
-  const endpoint = apiBase + '/api/track';
+  const apiOverride =
+    (params.get('api') || '').replace(/\/$/, '');
+
+  const apiBases = apiOverride
+    ? [apiOverride]
+    : [
+        'https://zisto.gr',
+        'https://zisto-gr.vercel.app',
+        'https://zisto-hero-glance-main.vercel.app',
+        'https://preview.zisto.app',
+      ];
+
+  let activeApiBase = null;
+
   const liveUrl =
     window.location.origin +
     window.location.pathname;
+
+  async function postApi(payload, options = {}) {
+    const candidates = activeApiBase
+      ? [
+          activeApiBase,
+          ...apiBases.filter(
+            (base) => base !== activeApiBase
+          ),
+        ]
+      : apiBases;
+
+    let lastNetworkError = null;
+
+    for (const base of candidates) {
+      try {
+        const response = await fetch(
+          base + '/api/track',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type':
+                'text/plain;charset=UTF-8',
+            },
+            body: JSON.stringify(payload),
+            keepalive:
+              options.keepalive === true,
+          }
+        );
+
+        const contentType =
+          response.headers.get(
+            'content-type'
+          ) || '';
+
+        const looksLikeApi =
+          contentType.includes(
+            'application/json'
+          );
+
+        if (
+          !looksLikeApi &&
+          [401, 403, 404, 405, 500, 502, 503, 504].includes(
+            response.status
+          )
+        ) {
+          continue;
+        }
+
+        activeApiBase = base;
+        return response;
+      } catch (error) {
+        lastNetworkError = error;
+      }
+    }
+
+    throw (
+      lastNetworkError ||
+      new Error(
+        'Could not reach the Zisto booking API.'
+      )
+    );
+  }
 
   const sessionId =
     getOrCreateId(
@@ -41,13 +115,8 @@
   }
 
   function track(eventType, metadata = {}) {
-    void fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type':
-          'text/plain;charset=UTF-8',
-      },
-      body: JSON.stringify({
+    void postApi(
+      {
         project_key: projectKey,
         live_url: liveUrl,
         event_type: eventType,
@@ -60,9 +129,11 @@
         referrer:
           document.referrer || '',
         metadata,
-      }),
-      keepalive: true,
-    }).catch(() => {});
+      },
+      {
+        keepalive: true,
+      }
+    ).catch(() => {});
   }
 
   track('page_view');
@@ -120,13 +191,9 @@
     content.innerHTML = '<div class="booking-loading"><div class="spinner"></div><p>Loading appointment…</p></div>';
 
     try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {'Content-Type':'text/plain;charset=UTF-8'},
-        body: JSON.stringify({
-          action: 'appointment_manage',
-          appointment_token: appointmentToken,
-        }),
+      const response = await postApi({
+        action: 'appointment_manage',
+        appointment_token: appointmentToken,
       });
 
       const data = await response.json();
@@ -265,22 +332,12 @@
     errorBox.hidden = true;
 
     try {
-      const response = await fetch(
-        endpoint,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type':
-              'text/plain;charset=UTF-8',
-          },
-          body: JSON.stringify({
-            action:
-              'appointment_public_cancel',
-            appointment_token:
-              appointmentToken,
-          }),
-        }
-      );
+      const response = await postApi({
+        action:
+          'appointment_public_cancel',
+        appointment_token:
+          appointmentToken,
+      });
 
       const data =
         await response.json();
@@ -692,24 +749,14 @@
       });
 
     try {
-      const response = await fetch(
-        endpoint,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type':
-              'text/plain;charset=UTF-8',
-          },
-          body: JSON.stringify({
-            action:
-              'appointment_public_reschedule',
-            appointment_token:
-              appointmentToken,
-            starts_at:
-              start.toISOString(),
-          }),
-        }
-      );
+      const response = await postApi({
+        action:
+          'appointment_public_reschedule',
+        appointment_token:
+          appointmentToken,
+        starts_at:
+          start.toISOString(),
+      });
 
       const data =
         await response.json();
@@ -784,14 +831,10 @@
     content.innerHTML = '<div class="booking-loading"><div class="spinner"></div><p>Loading availability…</p></div>';
 
     try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {'Content-Type':'text/plain;charset=UTF-8'},
-        body: JSON.stringify({
-          action: 'appointment_bootstrap',
-          project_key: projectKey,
-          live_url: liveUrl,
-        }),
+      const response = await postApi({
+        action: 'appointment_bootstrap',
+        project_key: projectKey,
+        live_url: liveUrl,
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Could not load booking');
@@ -984,21 +1027,17 @@
     const start = combineDateAndTime(state.date, state.time.minutes);
 
     try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {'Content-Type':'text/plain;charset=UTF-8'},
-        body: JSON.stringify({
-          action: 'appointment_book',
-          project_key: projectKey,
-          live_url: liveUrl,
-          service_id: state.service.id,
-          staff_id: state.staff?.id || '',
-          customer_name: formData.get('customer_name'),
-          customer_phone: formData.get('customer_phone'),
-          customer_email: formData.get('customer_email'),
-          notes: formData.get('notes'),
-          starts_at: start.toISOString(),
-        }),
+      const response = await postApi({
+        action: 'appointment_book',
+        project_key: projectKey,
+        live_url: liveUrl,
+        service_id: state.service.id,
+        staff_id: state.staff?.id || '',
+        customer_name: formData.get('customer_name'),
+        customer_phone: formData.get('customer_phone'),
+        customer_email: formData.get('customer_email'),
+        notes: formData.get('notes'),
+        starts_at: start.toISOString(),
       });
 
       const data = await response.json();
