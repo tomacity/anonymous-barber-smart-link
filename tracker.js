@@ -48,6 +48,6 @@
   window.Zisto = { ...(window.Zisto || {}), track };
   track("page_view");
   document.querySelectorAll(".js-book").forEach(button => {
-    button.addEventListener("click", () => track("booking_open", { placement: button.textContent.trim().slice(0, 80) }));
+    button.addEventListener("click", () => track("button_click", { action: "booking_open", placement: button.textContent.trim().slice(0, 80) }));
   });
 })();
